@@ -5,41 +5,62 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# find dependencies
+# --- Dependencies ---
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(touch_info REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
-rosidl_generate_interfaces( ${PROJECT_NAME} "msg/Touch.msg" DEPENDENCIES geometry_msgs )
+# --- Generate message ---
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/Touch.msg"
+  DEPENDENCIES geometry_msgs std_msgs
+)
 
+ament_export_dependencies(rosidl_default_runtime)
+
+# --- Include dirs (add generated message headers) ---
+include_directories(
+  include
+  ${CMAKE_CURRENT_BINARY_DIR}/rosidl_generator_cpp
+)
+
+# --- Link external headers/libs if needed ---
 include_directories(/opt/OpenHaptics/Developer/Include)
-#link_directories(/opt/OpenHaptics/Developer/Lib64)
+link_directories(/opt/OpenHaptics/Developer/Lib64)
 
-include_directories( include )
-add_library( touch_pub SHARED src/touch_pub.cpp )
-ament_target_dependencies( touch_pub rclcpp geometry_msgs touch_info)
+# --- Build library (optional) ---
+add_library(touch_pub SHARED src/touch_pub.cpp)
+ament_target_dependencies(touch_pub rclcpp geometry_msgs rosidl_default_runtime)
 target_link_libraries(touch_pub HD)
+#add_dependencies(touch_pub ${PROJECT_NAME}__rosidl_generator_cpp)  # Depends on generated msgs
 
-add_executable( pub src/touch_pub.cpp)
-target_link_libraries( pub touch_pub HD)
-ament_target_dependencies(pub rclcpp geometry_msgs touch_info)
+# --- Build executable ---
+add_executable(pub src/touch_pub.cpp)
+target_link_libraries(pub touch_pub HD)
+ament_target_dependencies(pub rclcpp geometry_msgs rosidl_default_runtime)
+#add_dependencies(pub ${PROJECT_NAME}__rosidl_generator_cpp)
 
-install( DIRECTORY include/ DESTINATION include)
-install( TARGETS touch_pub LIBRARY DESTINATION lib)
-install( TARGETS pub DESTINATION lib/${PROJECT_NAME} )
+
+rosidl_target_interfaces(touch_pub
+  ${PROJECT_NAME} "rosidl_typesupport_cpp")
+
+rosidl_target_interfaces(pub
+  ${PROJECT_NAME} "rosidl_typesupport_cpp")
+
+# --- Install ---
+install(DIRECTORY include/ DESTINATION include)
+install(TARGETS touch_pub LIBRARY DESTINATION lib)
+install(TARGETS pub DESTINATION lib/${PROJECT_NAME})
+
+# --- Testing (optional) ---
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # comment the line when a copyright and license is added to all source files
-  set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # comment the line when this package is in a git repo and when
-  # a copyright and license is added to all source files
   set(ament_cmake_cpplint_FOUND TRUE)
+  set(ament_cmake_copyright_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()
 
 ament_package()
+
